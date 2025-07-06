@@ -6,6 +6,7 @@ import BreathingExercise from './BreathingExercise';
 import { generateTherapistResponse } from '../utils/aiResponses';
 import { speakText, stopSpeaking } from '../utils/speechSynthesis';
 import { getUserInput, getUserInputHistory } from '../utils/deepgramTranscription';
+import { getGroqResponse } from '../utils/groqChat';
 
 interface ChatMessage {
   id: string;
@@ -46,23 +47,30 @@ const TherapistChat: React.FC = () => {
     setMessages(prev => [...prev, userMessage]);
     setIsProcessing(true);
 
-    // Generate AI response
-    setTimeout(() => {
-      const aiResponse = generateTherapistResponse(transcript, messages);
+    try {
+      // Get AI response from Groq
+      const aiResponse = await getGroqResponse(transcript);
       const aiMessage: ChatMessage = {
         id: (Date.now() + 1).toString(),
         text: aiResponse,
         isUser: false,
         timestamp: new Date(),
       };
-
       setMessages(prev => [...prev, aiMessage]);
       setIsProcessing(false);
-
       // Speak the response
       setIsSpeaking(true);
       speakText(aiResponse, () => setIsSpeaking(false));
-    }, 1000);
+    } catch (error) {
+      setIsProcessing(false);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to get AI response.';
+      setMessages(prev => [...prev, {
+        id: (Date.now() + 2).toString(),
+        text: errorMessage,
+        isUser: false,
+        timestamp: new Date(),
+      }]);
+    }
   };
 
   const handleStartChat = () => {
